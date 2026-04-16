@@ -1,0 +1,150 @@
+# WineDockerfile - полностью рабочий вариант без icoutils
+
+FROM --platform=linux/amd64 debian:bullseye-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV WINEDEBUG=-all
+ENV WINEPREFIX=/root/.wine
+ENV WINEARCH=win64
+
+# Add i386 architecture
+RUN dpkg --add-architecture i386
+
+# Install dependencies (убраны icoutils и p7zip-full из этого слоя)
+RUN apt-get update && \
+    apt-get -y install --no-install-recommends \
+        ca-certificates \
+        curl \
+        wget \
+        gnupg2 \
+        unzip \
+        git \
+        build-essential \
+        python3 \
+        python3-pip \
+        xz-utils \
+        mingw-w64 \
+        winbind \
+        apt-transport-https \
+    && rm -rf /var/lib/apt/lists/*
+
+# Add WineHQ repository
+RUN mkdir -pm755 /etc/apt/keyrings && \
+    wget -qO- https://dl.winehq.org/wine-builds/winehq.key | \
+    gpg --dearmor | tee /etc/apt/keyrings/winehq.gpg > /dev/null && \
+    echo "deb [signed-by=/etc/apt/keyrings/winehq.gpg] https://dl.winehq.org/wine-builds/debian/ bullseye main" > \
+    /etc/apt/sources.list.d/winehq.list
+
+# Install Wine and additional tools
+RUN apt-get update && \
+    apt-get -y install --no-install-recommends \
+        winehq-stable \
+        p7zip-full \
+        icnsutils \
+        libicns1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create python symlink
+RUN ln -s /usr/bin/python3 /usr/bin/python || true
+
+# Initialize Wine
+RUN wineboot --init 2>/dev/null || true && \
+    sleep 2 && \
+    winecfg -v win10 2>/dev/null || true && \
+    wineserver -w || true
+
+# Create wine wrapper
+RUN printf '%s\n' '#!/bin/sh' \
+      'export WINEDEBUG=-all' \
+      'export WINEPREFIX=/root/.wine' \
+      'export WINEARCH=win64' \
+      'if command -v wine64 >/dev/null 2>&1; then' \
+      '  exec wine64 "$@"' \
+      'else' \
+      '  exec wine "$@"' \
+      'fi' > /usr/bin/wine && chmod +x /usr/bin/wine
+
+# Install Rust
+ENV CARGO_HOME=/root/.cargo
+ENV RUSTUP_HOME=/root/.rustup
+ENV PATH=/root/.cargo/bin:${PATH}
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+    sh -s -- -y --default-toolchain stable && \
+    rustup target add x86_64-pc-windows-gnu
+
+# Configure cargo
+RUN mkdir -p /root/.cargo && \
+    cat > /root/.cargo/config.toml <<'EOF'
+[target.x86_64-pc-windows-gnu]
+linker = "x86_64-w64-mingw32-gcc"
+ar = "x86_64-w64-mingw32-ar"
+EOF
+
+# Install Node.js
+ENV NODE_VERSION=24.15.0
+RUN echo "Installing Node.js v${NODE_VERSION}" && \
+    cd /tmp && \
+    curl -fsSLO "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" && \
+    tar -xJf "node-v${NODE_VERSION}-linux-x64.tar.xz" -C /usr/local --strip-components=1 --no-same-owner && \
+    rm "node-v${NODE_VERSION}-linux-x64.tar.xz" && \
+    node --version && \
+    npm --version
+
+# Install electron-builder globally
+RUN npm install -g electron-builder && \
+    electron-builder --version
+
+# Environment for Windows build
+ENV npm_config_target_platform=win32
+ENV npm_config_target_arch=x64
+ENV npm_config_target_libc=unknown
+ENV ELECTRON_CACHE=/root/.cache/electron
+ENV ELECTRON_BUILDER_CACHE=/root/.cache/electron-builder
+docker run --rm \
+  -v /home/sergey/git/aitest/synapseStack/element-web/webapp-build-result/output:/project \
+  -v /home/sergey/git/aitest/synapseStack/element-web/electron-build-result:/output \
+  -v electron-pnpm-store:/root/.local/share/pnpm/store \
+  -v electron-cache:/root/.cache/electron \
+  -v electron-cache:/root/.cache/electron-builder \
+  -v electron-node-modules:/project/node_modules \
+  -v electron-cargo-cache:/root/.cargo/registry \
+  -e ELECTRON_CACHE=/root/.cache/electron \
+  -e ELECTRON_BUILDER_CACHE=/root/.cache/electron-builder \
+  electron-wine-builder \
+  bash -c "
+    # Устанавливаем pnpm если еще не установлен
+    npm install -g pnpm && \
+    
+    # Устанавливаем зависимости через pnpm
+    pnpm install --prefer-offline && \
+    
+    # Пересобираем нативные модули
+    pnpm electron-builder install-app-deps --platform=win32 --arch=x64 && \
+    
+    # Собираем portable exe
+    pnpm electron-builder build --win portable --x64 \
+      --config.directories.output=/output
+  "
+RUN mkdir -p /root/.cache/electron /root/.cache/electron-builder
+
+WORKDIR /project
+
+# Install pnpm
+RUN corepack enable
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    --mount=type=cache,target=/root/.npm \
+    corepack prepare pnpm@latest --activate
+
+ENV PNPM_HOME=/root/.local/share/pnpm
+ENV PATH="/root/.local/share/pnpm:$PATH"
+
+# Final verification
+RUN echo "=== Build environment ready ===" && \
+    echo "Node.js: $(node --version)" && \
+    echo "npm: $(npm --version)" && \
+    echo "pnpm: $(pnpm --version)" && \
+    echo "electron-builder: $(electron-builder --version)" && \
+    echo "Rust: $(rustc --version)" && \
+    echo "Wine: $(wine --version 2>/dev/null || echo 'ready')"
+
+CMD ["/bin/bash"]

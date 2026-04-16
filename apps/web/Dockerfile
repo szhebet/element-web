@@ -14,24 +14,36 @@ WORKDIR /src
 # Install dependencies
 COPY --parents package.json pnpm-lock.yaml pnpm-workspace.yaml patches scripts **/package.json /src/
 RUN corepack enable
-RUN --mount=type=bind,source=.git,target=/src/.git /src/scripts/docker-link-repos.sh
-RUN pnpm install
+# use local registry
+#RUN pnpm config set registry http://raspi.home329:4873/ && pnpm config set fetch-retry-maxtimeout 120000 && pnpm config set network-concurrency 2
+#конфигурируем зеркала PNPM и скрипт переключения между зеркалами
+RUN pnpm config set registry https://registry.npmmirror.com/
+
+
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    --mount=type=cache,target=/root/.npm \
+    --mount=type=bind,source=.git,target=/src/.git /src/scripts/docker-link-repos.sh && \
+    pnpm install
 
 # Build
 COPY --link --exclude=.git --exclude=apps/web/docker . /src
-RUN --mount=type=bind,source=.git,target=/src/.git /src/scripts/docker-package.sh
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    --mount=type=cache,target=/root/.npm \
+    --mount=type=bind,source=.git,target=/src/.git /src/scripts/docker-package.sh
 
 # Copy the config now so that we don't create another layer in the app image
 RUN cp /src/apps/web/config.sample.json /src/apps/web/webapp/config.json
 
 # App
-FROM nginxinc/nginx-unprivileged:alpine-slim@sha256:b5831ee7f7aa827cbae87df4a30a642f62c747d8525f5674365389f3adab278d
+FROM nginxinc/nginx-unprivileged:alpine-slim
 
 # Need root user to install packages & manipulate the usr directory
 USER root
-
+#используем другое зеркало репозиториев
 # Install jq and moreutils for sponge, both used by our entrypoints
-RUN apk add jq moreutils
+RUN echo "https://mirror.selectel.ru/alpine/v3.21/main" > /etc/apk/repositories && \
+    echo "https://mirror.selectel.ru/alpine/v3.21/community" >> /etc/apk/repositories && \
+    apk update && apk add --no-cache jq moreutils
 
 COPY --from=builder /src/apps/web/webapp /app
 
@@ -50,3 +62,8 @@ USER nginx
 ENV ELEMENT_WEB_PORT=80
 
 HEALTHCHECK --start-period=5s CMD wget -q --spider http://localhost:$ELEMENT_WEB_PORT/config.json
+
+
+# Export stage - копирует собранные файлы для вывода на хост
+FROM scratch AS export
+COPY --from=builder /src/apps/web/webapp /output/

@@ -1,62 +1,53 @@
 {
-    "default_server_name": "matrix.org",
+    "default_server_name": "beizh.online",
     "default_server_config": {
         "m.homeserver": {
-            "base_url": "https://matrix-client.matrix.org"
+            "base_url": "https://chat.beizh.online"
         },
         "m.identity_server": {
-            "base_url": "https://vector.im"
+            "base_url": "https://auth.beizh.online"
         }
     },
     "brand": "Element",
-    "integrations_ui_url": "https://scalar.vector.im/",
-    "integrations_rest_url": "https://scalar.vector.im/api",
+    "integrations_ui_url": "https://chat.beizh.online",
+    "integrations_rest_url": "https://chat.beizh.online/api",
     "integrations_widgets_urls": [
-        "https://scalar.vector.im/_matrix/integrations/v1",
-        "https://scalar.vector.im/api",
-        "https://scalar-staging.vector.im/_matrix/integrations/v1",
-        "https://scalar-staging.vector.im/api"
+        "https://https://chat.beizh.online/_matrix/integrations/v1",
+        "https://https://chat.beizh.online/api"
     ],
-    "bug_report_endpoint_url": "https://rageshakes.element.io/api/submit",
-    "show_labs_settings": true,
+    "bug_report_endpoint_url": "https://",
+    "show_labs_settings": false,
     "room_directory": {
-        "servers": ["matrix.org", "gitter.im"]
+        "servers": ["chat.beizh.online"]
     },
     "enable_presence_by_hs_url": {
-        "https://matrix.org": false,
-        "https://matrix-client.matrix.org": false
+        "https://chat.beizh.online": false
     },
     "terms_and_conditions_links": [
         {
-            "url": "https://element.io/privacy",
+            "url": "/",
             "text": "Privacy Policy"
         },
         {
-            "url": "https://element.io/cookie-policy",
+            "url": "/",
             "text": "Cookie Policy"
         }
     ],
-    "sentry": {
-        "dsn": "https://029a0eb289f942508ae0fb17935bd8c5@sentry.matrix.org/6",
-        "environment": "develop"
-    },
     "posthog": {
         "project_api_key": "phc_Jzsm6DTm6V2705zeU5dcNvQDlonOR68XvX2sh1sEOHO",
-        "api_host": "https://posthog.element.io"
+        "api_host": "/"
     },
-    "privacy_policy_url": "https://element.io/cookie-policy",
+    "privacy_policy_url": "/",
+    "map_style_url": "/",
+    "setting_defaults": {
+        "RustCrypto.staged_rollout_percent": 60
+    },
     "features": {
-        "threadsActivityCentre": true,
         "feature_video_rooms": true,
         "feature_group_calls": true,
         "feature_element_call_video_rooms": true
     },
-    "setting_defaults": {
-        "RustCrypto.staged_rollout_percent": 100,
-        "Registration.mobileRegistrationHelper": true
-    },
     "element_call": {
-        "url": "https://call.element.dev"
-    },
-    "map_style_url": "https://api.maptiler.com/maps/streets/style.json?key=fU3vlMsMn4Jb6dnEIFsx"
+        "url": "https://chat.beizh.online/livekit/jwt"
+    }
 }
