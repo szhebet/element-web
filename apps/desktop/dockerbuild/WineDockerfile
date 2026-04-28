@@ -100,31 +100,7 @@ ENV npm_config_target_arch=x64
 ENV npm_config_target_libc=unknown
 ENV ELECTRON_CACHE=/root/.cache/electron
 ENV ELECTRON_BUILDER_CACHE=/root/.cache/electron-builder
-docker run --rm \
-  -v /home/sergey/git/aitest/synapseStack/element-web/webapp-build-result/output:/project \
-  -v /home/sergey/git/aitest/synapseStack/element-web/electron-build-result:/output \
-  -v electron-pnpm-store:/root/.local/share/pnpm/store \
-  -v electron-cache:/root/.cache/electron \
-  -v electron-cache:/root/.cache/electron-builder \
-  -v electron-node-modules:/project/node_modules \
-  -v electron-cargo-cache:/root/.cargo/registry \
-  -e ELECTRON_CACHE=/root/.cache/electron \
-  -e ELECTRON_BUILDER_CACHE=/root/.cache/electron-builder \
-  electron-wine-builder \
-  bash -c "
-    # Устанавливаем pnpm если еще не установлен
-    npm install -g pnpm && \
-    
-    # Устанавливаем зависимости через pnpm
-    pnpm install --prefer-offline && \
-    
-    # Пересобираем нативные модули
-    pnpm electron-builder install-app-deps --platform=win32 --arch=x64 && \
-    
-    # Собираем portable exe
-    pnpm electron-builder build --win portable --x64 \
-      --config.directories.output=/output
-  "
+
 RUN mkdir -p /root/.cache/electron /root/.cache/electron-builder
 
 WORKDIR /project

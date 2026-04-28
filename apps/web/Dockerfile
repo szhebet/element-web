@@ -16,9 +16,16 @@ COPY --parents package.json pnpm-lock.yaml pnpm-workspace.yaml patches scripts *
 RUN corepack enable
 # use local registry
 #RUN pnpm config set registry http://raspi.home329:4873/ && pnpm config set fetch-retry-maxtimeout 120000 && pnpm config set network-concurrency 2
-#конфигурируем зеркала PNPM и скрипт переключения между зеркалами
-RUN pnpm config set registry https://registry.npmmirror.com/
+# загрузим пакет, которого нет в китайском зеркале
+#RUN pnpm store add https://registry.npmjs.org/matrix-mock-request/-/matrix-mock-request-2.6.0.tgz
+#RUN pnpm add -g matrix-mock-request@2.6.0 --store-dir /root/.local/share/pnpm/store/v10
 
+#конфигурируем зеркала PNPM и скрипт переключения между зеркалами (переключимся на китайское зеркало чтобы работало быстро) но сначала загрузим matrix-mock-request@2.6.0 которого нет
+# на зеркале
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm config set registry https://registry.npmjs.org/ && \
+    pnpm fetch matrix-mock-request@2.6.0 && \
+    pnpm config set registry https://registry.npmmirror.com/
 
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     --mount=type=cache,target=/root/.npm \
